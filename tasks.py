@@ -47,11 +47,10 @@ class Text2ImgInput(BaseModel):
         le=2147483647   # max int32
     )
     nag_scale: float = Field(
-        description="NAG-PAG negative guidance scale (0.0-1.0). Higher values increase negative prompt influence.", 
+        description="NAG-PAG negative guidance scale. Higher values increase negative prompt influence.", 
         examples=[0.1, 0.3, 0.5], 
         default=0.3,  # Increased for stronger effect
         ge=0.0,   # minimum 0
-        le=1.0    # maximum 1
     )
     alpha: float = Field(
         description="NAG-PAG blending factor (0.0-1.0). Controls mixing of positive and negative guidance.", 

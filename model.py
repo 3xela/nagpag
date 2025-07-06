@@ -47,8 +47,8 @@ class NagPagText2Img:
             alpha: Blending factor for NAG-PAG output (0.0-1.0)
         """
         print(f"[DEBUG] NagPagText2Img.__call__ invoked with nag_scale={nag_scale}, alpha={alpha}")
-        self._nag_scale = nag_scale
-        self._alpha = alpha
+        self.pipeline._nag_scale = nag_scale
+        self.pipeline._alpha = alpha
 
         import torch
         with torch.no_grad():
@@ -382,7 +382,7 @@ class FluxPredictor:
             prompt=request.prompt,
             negative_prompt=request.negative_prompt,
             nag_scale=request.nag_scale,
-            alpha=request.alpha,
+            alpha=request.alpha if request.negative_prompt != "" else 0,
             height=request.height,
             width=request.width,
             guidance_scale=request.guidance,
