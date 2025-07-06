@@ -3,15 +3,12 @@ from tasks import Text2ImgInput, Img2ImgInput, ImgOutput
 from fal.toolkit import Image
 from typing import Optional
 
-
 model_name = "black-forest-labs/FLUX.1-dev"
-
 
 class NagPagText2Img:
     def __init__(self, *args, **kwargs):
         from diffusers import FluxPipeline
         import torch
-        import torch.nn.functional as F
 
         self.pipeline = FluxPipeline.from_pretrained(*args, **kwargs)
 
@@ -41,8 +38,8 @@ class NagPagText2Img:
         Args:
             prompt: Positive text prompt
             negative_prompt: Optional negative text prompt for guidance
-            nag_scale: Scale factor for negative guidance (0.0-1.0)
-            alpha: Blending factor for NAG-PAG output (0.0-1.0)
+            nag_scale: Scale factor for negative guidance
+            alpha: Blending factor for NAG-PAG output
         """
         self.pipeline._nag_scale = nag_scale
         self.pipeline._alpha = alpha
@@ -167,7 +164,6 @@ class NagPagImg2Img:
     def __init__(self, *args, **kwargs):
         from diffusers import FluxImg2ImgPipeline
         import torch
-        import torch.nn.functional as F
 
         # Handle both from_pretrained and component-based initialization
         if args and isinstance(args[0], str):
@@ -213,11 +209,11 @@ class NagPagImg2Img:
 
         with torch.no_grad():
             if negative_prompt is None or negative_prompt == "":
-                # Clear any stored negative embeddings
+                # clear any stored negative embeddings
                 self.pipeline._negative_embeddings = None
                 return self.pipeline(prompt, *args, **kwargs)
 
-            # Encode and store negative embeddings for attention processors to access
+            # encode and store negative embeddings for attention processors to access
             neg_embeds, _ = self._encode_prompt(negative_prompt)
             self.pipeline._negative_embeddings = neg_embeds
 
@@ -252,12 +248,11 @@ class NagPagImg2Img:
         """
         import torch
 
-        # Check cache first for speed optimization
+        # cache negative prompts
         if prompt in self._prompt_cache:
             return self._prompt_cache[prompt]
 
         with torch.no_grad():
-            # Tokenize prompt for CLIP encoder
             text_inputs = self.pipeline.tokenizer(
                 prompt,
                 padding="max_length",
@@ -372,7 +367,7 @@ class FluxPredictor:
             prompt=request.prompt,
             negative_prompt=request.negative_prompt,
             nag_scale=request.nag_scale,
-            alpha=request.alpha if request.negative_prompt != "" else 0,
+            alpha=0.5 if request.negative_prompt != "" else 0,
             height=request.height,
             width=request.width,
             guidance_scale=request.guidance,
@@ -397,7 +392,7 @@ class FluxPredictor:
         image = Image.from_pil(raw_output.images[0])
         return ImgOutput(image=image)
 
-
+# i took the code from flux attn processor and switched it up
 class NPFluxAttnProcessor2_0:
     """NAG-PAG attention processor for FLUX transformer blocks.
 
@@ -407,7 +402,6 @@ class NPFluxAttnProcessor2_0:
     """
 
     def __init__(self):
-        import torch
         import torch.nn.functional as F
 
         if not hasattr(F, "scaled_dot_product_attention"):
@@ -440,7 +434,7 @@ class NPFluxAttnProcessor2_0:
 
         # Get current parameters from pipeline
         nag_scale = getattr(self._pipeline_ref, "_nag_scale", 0.3)
-        alpha = getattr(self._pipeline_ref, "_alpha", 0.99)
+        alpha = getattr(self._pipeline_ref, "_alpha", 0.5)
 
         negative_embeddings = None
         if hasattr(self, "_pipeline_ref") and hasattr(

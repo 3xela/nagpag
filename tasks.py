@@ -18,47 +18,48 @@ class Text2ImgInput(BaseModel):
     height: int = Field(
         description="The height of the image you wish to generate, in pixels",
         default=1024,
-        ge=256,  # minimum 256px
-        le=2048,  # maximum 2048px
+        ge=256,
+        le=2048,
     )
     width: int = Field(
         description="The width of the image you wish to generate, in pixels",
         default=1024,
-        ge=256,  # minimum 256px
-        le=2048,  # maximum 2048px
+        ge=256,
+        le=2048,
     )
     guidance: float = Field(
         description="How closely the image generation should adhere to the prompt",
         examples=[7.5],
         default=7.5,
-        ge=0.0,  # minimum guidance
+        ge=0.0,
     )
     steps: int = Field(
         description="How many diffusion steps to take",
         examples=[20],
         default=20,
-        ge=1,  # minimum 1 step
+        ge=1,
     )
     seed: int = Field(
         description="Random seed for image generation",
         examples=[42],
         default=42,
-        ge=0,  # non-negative
-        le=2147483647,  # max int32
+        ge=0,
+        le=2147483647,
     )
     nag_scale: float = Field(
         description="NAG-PAG negative guidance scale. Higher values increase negative prompt influence.",
         examples=[0.1, 0.3, 0.5],
-        default=0.3,  # Increased for stronger effect
-        ge=0.0,  # minimum 0
+        default=0.3,
+        ge=0.0,
     )
-    alpha: float = Field(
-        description="NAG-PAG blending factor (0.0-1.0). Controls mixing of positive and negative guidance.",
-        examples=[0.7, 0.8, 0.9],
-        default=0.8,  # Reduced for more negative influence
-        ge=0.0,  # minimum 0
-        le=1.0,  # maximum 1
-    )
+    # im unsure if i wanna let this be configurable, ill leave it as 0.5 tbh
+    # alpha: float = Field(
+    #     description="NAG-PAG blending factor (0.0-1.0). Controls mixing of positive and negative guidance.",
+    #     examples=[0.7, 0.8, 0.9],
+    #     default=0.8,
+    #     ge=0.0,
+    #     le=1.0,
+    # )
 
 
 class Img2ImgInput(BaseModel):
@@ -74,34 +75,34 @@ class Img2ImgInput(BaseModel):
     height: int = Field(
         description="The height of the image you wish to generate, in pixels",
         default=1024,
-        ge=256,  # minimum 256px
-        le=2048,  # maximum 2048px
+        ge=256,
+        le=2048,
     )
     width: int = Field(
         description="The width of the image you wish to generate, in pixels",
         default=1024,
-        ge=256,  # minimum 256px
-        le=2048,  # maximum 2048px
+        ge=256,
+        le=2048,
     )
     guidance: float = Field(
         description="How closely the image generation should adhere to the prompt",
         examples=[3.5],
         default=3.5,
-        ge=1.0,  # minimum guidance
-        le=20.0,  # maximum gu  idance
+        ge=1.0,
+        le=20.0,
     )
     strength: float = Field(
         description="The strength of the image to generate from, between 0 and 1",
         examples=[0.5],
         default=0.5,
-        ge=0.0,  # minimum strength
-        le=1.0,  # maximum strength
+        ge=0.0,
+        le=1.0,
     )
     steps: int = Field(
         description="How many diffusion steps to take",
         examples=[20],
         default=20,
-        ge=1,  # minimum 1 step
+        ge=1,
     )
     seed: int = Field(
         description="Random seed for image generation", examples=[42], default=42
