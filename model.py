@@ -5,6 +5,7 @@ from typing import Optional
 
 model_name = "black-forest-labs/FLUX.1-dev"
 
+
 class NagPagText2Img:
     def __init__(self, *args, **kwargs):
         from diffusers import FluxPipeline
@@ -12,15 +13,12 @@ class NagPagText2Img:
 
         self.pipeline = FluxPipeline.from_pretrained(*args, **kwargs)
 
-        # Speed optimizations without quality loss
-        self.pipeline.enable_attention_slicing()  # Process attention in slices
-        torch.backends.cudnn.benchmark = True  # Optimize for consistent input sizes
+        self.pipeline.enable_attention_slicing()
+        torch.backends.cudnn.benchmark = True
 
-        # Initialize default NAG-PAG parameters
         self.nag_scale = 0.5
         self.alpha = 0.5
 
-        # Cache for prompt embeddings (speed optimization)
         self._prompt_cache = {}
 
         self._replace_attention_processors()
@@ -48,15 +46,12 @@ class NagPagText2Img:
 
         with torch.no_grad():
             if negative_prompt is None or negative_prompt == "":
-                # Clear any stored negative embeddings
                 self.pipeline._negative_embeddings = None
                 return self.pipeline(prompt, *args, **kwargs)
 
-            # Encode and store negative embeddings for attention processors to access
             neg_embeds, _ = self._encode_prompt(negative_prompt)
             self.pipeline._negative_embeddings = neg_embeds
 
-            # Run with positive prompt - attention processors will access stored negative embeddings
             return self.pipeline(prompt, *args, **kwargs)
 
     def __getattr__(self, name):
@@ -87,12 +82,11 @@ class NagPagText2Img:
         """
         import torch
 
-        # Check cache first for speed optimization
+        # Check cache first
         if prompt in self._prompt_cache:
             return self._prompt_cache[prompt]
 
         with torch.no_grad():
-            # Tokenize prompt for CLIP encoder
             text_inputs = self.pipeline.tokenizer(
                 prompt,
                 padding="max_length",
@@ -110,23 +104,20 @@ class NagPagText2Img:
                 return_tensors="pt",
             )
 
-        # Encode with both text encoders
         prompt_embeds = self.pipeline.text_encoder(
             text_inputs.input_ids.to(self.pipeline.device),
             output_hidden_states=True,
         )
-        pooled_prompt_embeds = prompt_embeds.pooler_output  # CLIP pooled embeddings
+        pooled_prompt_embeds = prompt_embeds.pooler_output
         prompt_embeds = prompt_embeds.hidden_states[-2]
 
         prompt_embeds_2 = self.pipeline.text_encoder_2(
             text_inputs_2.input_ids.to(self.pipeline.device),
             output_hidden_states=True,
         )
-        prompt_embeds_2 = prompt_embeds_2.hidden_states[-2]  # T5 hidden states only
+        prompt_embeds_2 = prompt_embeds_2.hidden_states[-2]
 
-        # Concatenate the hidden states from both encoders
         if prompt_embeds.shape[1] < prompt_embeds_2.shape[1]:
-            # Pad CLIP embeddings to match T5 length
             padding = torch.zeros(
                 prompt_embeds.shape[0],
                 prompt_embeds_2.shape[1] - prompt_embeds.shape[1],
@@ -136,7 +127,6 @@ class NagPagText2Img:
             )
             prompt_embeds = torch.cat([prompt_embeds, padding], dim=1)
         elif prompt_embeds_2.shape[1] < prompt_embeds.shape[1]:
-            # Pad T5 embeddings to match CLIP length
             padding = torch.zeros(
                 prompt_embeds_2.shape[0],
                 prompt_embeds.shape[1] - prompt_embeds_2.shape[1],
@@ -146,10 +136,8 @@ class NagPagText2Img:
             )
             prompt_embeds_2 = torch.cat([prompt_embeds_2, padding], dim=1)
 
-        # Now concatenate along the feature dimension
         prompt_embeds = torch.cat([prompt_embeds, prompt_embeds_2], dim=-1)
 
-        # Cache the result for future use (speed optimization)
         result = (prompt_embeds, pooled_prompt_embeds)
         self._prompt_cache[prompt] = result
 
@@ -170,18 +158,13 @@ class NagPagImg2Img:
             # from_pretrained case
             self.pipeline = FluxImg2ImgPipeline.from_pretrained(*args, **kwargs)
         else:
-            # Component-based initialization
             self.pipeline = FluxImg2ImgPipeline(*args, **kwargs)
 
-        # Speed optimizations without quality loss
-        self.pipeline.enable_attention_slicing()  # Process attention in slices
-        torch.backends.cudnn.benchmark = True  # Optimize for consistent input sizes
+        self.pipeline.enable_attention_slicing()
+        torch.backends.cudnn.benchmark = True
 
-        # Initialize default NAG-PAG parameters
         self.nag_scale = 0.5
         self.alpha = 0.5
-
-        # Cache for prompt embeddings (speed optimization)
         self._prompt_cache = {}
 
         self._replace_attention_processors()
@@ -209,20 +192,16 @@ class NagPagImg2Img:
 
         with torch.no_grad():
             if negative_prompt is None or negative_prompt == "":
-                # clear any stored negative embeddings
                 self.pipeline._negative_embeddings = None
                 return self.pipeline(prompt, *args, **kwargs)
 
-            # encode and store negative embeddings for attention processors to access
             neg_embeds, _ = self._encode_prompt(negative_prompt)
             self.pipeline._negative_embeddings = neg_embeds
 
-            # Run with positive prompt - attention processors will access stored negative embeddings
             return self.pipeline(prompt, *args, **kwargs)
 
     def __getattr__(self, name):
         if name == "__call__":
-            # Don't delegate __call__ - we have our own custom implementation
             raise AttributeError(
                 f"'{type(self).__name__}' object has no attribute '{name}'"
             )
@@ -261,7 +240,6 @@ class NagPagImg2Img:
                 return_tensors="pt",
             )
 
-            # Tokenize prompt for T5 encoder
             text_inputs_2 = self.pipeline.tokenizer_2(
                 prompt,
                 padding="max_length",
@@ -286,7 +264,6 @@ class NagPagImg2Img:
 
         # Concatenate the hidden states from both encoders
         if prompt_embeds.shape[1] < prompt_embeds_2.shape[1]:
-            # Pad CLIP embeddings to match T5 length
             padding = torch.zeros(
                 prompt_embeds.shape[0],
                 prompt_embeds_2.shape[1] - prompt_embeds.shape[1],
@@ -296,7 +273,6 @@ class NagPagImg2Img:
             )
             prompt_embeds = torch.cat([prompt_embeds, padding], dim=1)
         elif prompt_embeds_2.shape[1] < prompt_embeds.shape[1]:
-            # Pad T5 embeddings to match CLIP length
             padding = torch.zeros(
                 prompt_embeds_2.shape[0],
                 prompt_embeds.shape[1] - prompt_embeds_2.shape[1],
@@ -306,10 +282,8 @@ class NagPagImg2Img:
             )
             prompt_embeds_2 = torch.cat([prompt_embeds_2, padding], dim=1)
 
-        # Now concatenate along the feature dimension
         prompt_embeds = torch.cat([prompt_embeds, prompt_embeds_2], dim=-1)
 
-        # Cache the result for future use (speed optimization)
         result = (prompt_embeds, pooled_prompt_embeds)
         self._prompt_cache[prompt] = result
 
@@ -392,6 +366,7 @@ class FluxPredictor:
         image = Image.from_pil(raw_output.images[0])
         return ImgOutput(image=image)
 
+
 # i took the code from flux attn processor and switched it up
 class NPFluxAttnProcessor2_0:
     """NAG-PAG attention processor for FLUX transformer blocks.
@@ -432,7 +407,6 @@ class NPFluxAttnProcessor2_0:
         import torch
         import torch.nn.functional as F
 
-        # Get current parameters from pipeline
         nag_scale = getattr(self._pipeline_ref, "_nag_scale", 0.3)
         alpha = getattr(self._pipeline_ref, "_alpha", 0.5)
 
@@ -506,14 +480,11 @@ class NPFluxAttnProcessor2_0:
             query = apply_rotary_emb(query, image_rotary_emb)
             key = apply_rotary_emb(key, image_rotary_emb)
 
-        # Compute attention for the full batch (positive + negative) with optimized backend
         attention_output = F.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
 
-        # Apply NAG-PAG guidance if negative embeddings are available
         if apply_nagpag:
-            # Create projection layer to convert concatenated embeddings (4864) to FLUX format (3072)
             if not hasattr(self, "_text_proj"):
                 import torch.nn as nn
 
@@ -521,57 +492,41 @@ class NPFluxAttnProcessor2_0:
                 dtype = negative_embeddings.dtype
                 self._text_proj = nn.Linear(4864, 3072, device=device, dtype=dtype)
 
-            # Project negative embeddings to match encoder_hidden_states format
             neg_encoder_hidden_states = self._text_proj(
                 negative_embeddings
             )  # [batch, 512, 3072]
-
-            # Handle both cross-attention and self-attention layers in FLUX
             if hasattr(attn, "add_v_proj") and attn.add_v_proj is not None:
-                # Cross-attention layer: use add_v_proj for encoder states
                 neg_value_proj = attn.add_v_proj(neg_encoder_hidden_states)
             else:
-                # Self-attention layer: use standard to_v projection
                 neg_value_proj = attn.to_v(neg_encoder_hidden_states)
-
-            # Reshape to match FLUX attention format
             neg_value_proj = neg_value_proj.view(
                 batch_size, -1, attn.heads, head_dim
             ).transpose(1, 2)
 
-            # Apply identity matrix attention for NAG-PAG negative guidance
-
-            # Create negative attention output with identity matrix behavior
             neg_attention_output = torch.zeros_like(attention_output)
 
-            # Apply negative embeddings to encoder portion (first 512 tokens)
             neg_seq_len = neg_value_proj.shape[2]
             neg_attention_output[:, :, :neg_seq_len, :] = neg_value_proj
 
-            # Preserve hidden state portion from positive attention
             neg_attention_output[:, :, neg_seq_len:, :] = attention_output[
                 :, :, neg_seq_len:, :
             ]
 
-            # Apply NAG-PAG guidance equations
             attention_output = self.apply_nagpag_equations(
                 attention_output, neg_attention_output, nag_scale, alpha
             )
 
-        # Reshape attention output back to original format
         hidden_states = attention_output.transpose(1, 2).reshape(
             attention_output.shape[0], -1, attn.heads * head_dim
         )
         hidden_states = hidden_states.to(query.dtype)
 
         if encoder_hidden_states is not None:
-            # Split encoder and hidden state portions
             encoder_hidden_states, hidden_states = (
                 hidden_states[:, : encoder_hidden_states.shape[1]],
                 hidden_states[:, encoder_hidden_states.shape[1] :],
             )
 
-            # Apply output projections
             hidden_states = attn.to_out[0](hidden_states)
             hidden_states = attn.to_out[1](hidden_states)
             encoder_hidden_states = attn.to_add_out(encoder_hidden_states)

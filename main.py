@@ -3,7 +3,6 @@ import logging
 from tasks import Text2ImgInput, Img2ImgInput, ImgOutput
 from model import FluxPredictor
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -41,9 +40,7 @@ class MyApp(fal.App, keep_alive=300, name="take-home"):
         warmup_task = self.Text2ImgInput(
             prompt="a picture of a cat", negative_prompt=""
         )
-        logger.info(
-            f"[DEBUG] Warmup task created: nag_scale={warmup_task.nag_scale}"
-        )
+        logger.info(f"[DEBUG] Warmup task created: nag_scale={warmup_task.nag_scale}")
         self.flux_predictor.do_text_2_img(warmup_task)
 
     @fal.endpoint("/")
@@ -62,3 +59,4 @@ class MyApp(fal.App, keep_alive=300, name="take-home"):
 
 
 # TODO add a "validate task" method that makes sure the values are nice
+# not needed 
