@@ -16,6 +16,7 @@ class NagPagText2Img:
         self.pipeline.enable_attention_slicing()
         torch.backends.cudnn.benchmark = True
 
+
         self.nag_scale = 0.5
         self.alpha = 0.5
 
@@ -51,7 +52,6 @@ class NagPagText2Img:
 
             neg_embeds, _ = self._encode_prompt(negative_prompt)
             self.pipeline._negative_embeddings = neg_embeds
-
             return self.pipeline(prompt, *args, **kwargs)
 
     def __getattr__(self, name):
@@ -162,6 +162,7 @@ class NagPagImg2Img:
 
         self.pipeline.enable_attention_slicing()
         torch.backends.cudnn.benchmark = True
+
 
         self.nag_scale = 0.5
         self.alpha = 0.5
@@ -489,7 +490,6 @@ class NPFluxAttnProcessor2_0:
                 device = negative_embeddings.device
                 dtype = negative_embeddings.dtype
                 self._text_proj = nn.Linear(4864, 3072, device=device, dtype=dtype)
-
             neg_encoder_hidden_states = self._text_proj(
                 negative_embeddings
             )  # [batch, 512, 3072]

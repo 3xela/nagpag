@@ -52,6 +52,7 @@ class Text2ImgInput(BaseModel):
         default=0.3,
         ge=0.0,
     )
+
     # im unsure if i wanna let this be configurable, ill leave it as 0.5 tbh
     # alpha: float = Field(
     #     description="NAG-PAG blending factor (0.0-1.0). Controls mixing of positive and negative guidance.",
