@@ -13,28 +13,26 @@ class NagPagText2Img:
         import torch
         import torch.nn.functional as F
 
-        print("NagPagFluxPipeline")
         self.pipeline = FluxPipeline.from_pretrained(*args, **kwargs)
-        print("loaded nagpag flux pipeline")
-        
+
         # Speed optimizations without quality loss
         self.pipeline.enable_attention_slicing()  # Process attention in slices
-        torch.backends.cudnn.benchmark = True     # Optimize for consistent input sizes
-        
+        torch.backends.cudnn.benchmark = True  # Optimize for consistent input sizes
+
         # Initialize default NAG-PAG parameters
         self.nag_scale = 0.5
         self.alpha = 0.5
-        
+
         # Cache for prompt embeddings (speed optimization)
         self._prompt_cache = {}
-        
+
         self._replace_attention_processors()
 
     @classmethod
     def from_pretrained(cls, *args, **kwargs):
         return cls(*args, **kwargs)
 
-# figure out how to use @torch.no_grad() here, importing torch is weird
+    # figure out how to use @torch.no_grad() here, importing torch is weird
     def __call__(
         self, prompt, negative_prompt=None, nag_scale=0.5, alpha=0.5, *args, **kwargs
     ):
@@ -46,11 +44,11 @@ class NagPagText2Img:
             nag_scale: Scale factor for negative guidance (0.0-1.0)
             alpha: Blending factor for NAG-PAG output (0.0-1.0)
         """
-        print(f"[DEBUG] NagPagText2Img.__call__ invoked with nag_scale={nag_scale}, alpha={alpha}")
         self.pipeline._nag_scale = nag_scale
         self.pipeline._alpha = alpha
 
         import torch
+
         with torch.no_grad():
             if negative_prompt is None or negative_prompt == "":
                 # Clear any stored negative embeddings
@@ -91,7 +89,7 @@ class NagPagText2Img:
         Returns concatenated embeddings with shape [batch, seq_len, 4864].
         """
         import torch
-        
+
         # Check cache first for speed optimization
         if prompt in self._prompt_cache:
             return self._prompt_cache[prompt]
@@ -153,16 +151,17 @@ class NagPagText2Img:
 
         # Now concatenate along the feature dimension
         prompt_embeds = torch.cat([prompt_embeds, prompt_embeds_2], dim=-1)
-        
+
         # Cache the result for future use (speed optimization)
         result = (prompt_embeds, pooled_prompt_embeds)
         self._prompt_cache[prompt] = result
-        
+
         return result
 
     def _clear_negative_embeddings(self):
         """Clear stored negative embeddings"""
         self.pipeline._negative_embeddings = None
+
 
 class NagPagImg2Img:
     def __init__(self, *args, **kwargs):
@@ -170,7 +169,6 @@ class NagPagImg2Img:
         import torch
         import torch.nn.functional as F
 
-        print("NagPagFluxPipelineImg2Img")
         # Handle both from_pretrained and component-based initialization
         if args and isinstance(args[0], str):
             # from_pretrained case
@@ -178,19 +176,17 @@ class NagPagImg2Img:
         else:
             # Component-based initialization
             self.pipeline = FluxImg2ImgPipeline(*args, **kwargs)
-        print("loaded nagpag flux img2img pipeline")
-        
+
         # Speed optimizations without quality loss
         self.pipeline.enable_attention_slicing()  # Process attention in slices
-        torch.backends.cudnn.benchmark = True     # Optimize for consistent input sizes
-        
+        torch.backends.cudnn.benchmark = True  # Optimize for consistent input sizes
+
         # Initialize default NAG-PAG parameters
         self.nag_scale = 0.5
         self.alpha = 0.5
-        
+
         # Cache for prompt embeddings (speed optimization)
         self._prompt_cache = {}
-        
 
         self._replace_attention_processors()
 
@@ -198,7 +194,7 @@ class NagPagImg2Img:
     def from_pretrained(cls, *args, **kwargs):
         return cls(*args, **kwargs)
 
-# figure out how to use @torch.no_grad() here, importing torch is weird
+    # figure out how to use @torch.no_grad() here, importing torch is weird
     def __call__(
         self, prompt, negative_prompt=None, nag_scale=0.5, alpha=0.5, *args, **kwargs
     ):
@@ -210,11 +206,11 @@ class NagPagImg2Img:
             nag_scale: Scale factor for negative guidance (0.0-1.0)
             alpha: Blending factor for NAG-PAG output (0.0-1.0)
         """
-        print(f"[DEBUG] Setting pipeline params: nag_scale={nag_scale}, alpha={alpha}")
         self._nag_scale = nag_scale
         self._alpha = alpha
 
         import torch
+
         with torch.no_grad():
             if negative_prompt is None or negative_prompt == "":
                 # Clear any stored negative embeddings
@@ -255,7 +251,7 @@ class NagPagImg2Img:
         Returns concatenated embeddings with shape [batch, seq_len, 4864].
         """
         import torch
-        
+
         # Check cache first for speed optimization
         if prompt in self._prompt_cache:
             return self._prompt_cache[prompt]
@@ -317,20 +313,20 @@ class NagPagImg2Img:
 
         # Now concatenate along the feature dimension
         prompt_embeds = torch.cat([prompt_embeds, prompt_embeds_2], dim=-1)
-        
+
         # Cache the result for future use (speed optimization)
         result = (prompt_embeds, pooled_prompt_embeds)
         self._prompt_cache[prompt] = result
-        
+
         return result
 
     def _clear_negative_embeddings(self):
         """Clear stored negative embeddings"""
         self.pipeline._negative_embeddings = None
 
+
 class FluxPredictor:
     def __init__(self):
-        print("[DEBUG] FluxPredictor.__init__ called")
         import torch
         from diffusers import FluxImg2ImgPipeline
 
@@ -355,10 +351,6 @@ class FluxPredictor:
             model_name,
             torch_dtype=self.torch.bfloat16,
         ).to("cuda")
-        print(f"DEBUG: Created pipeline type: {type(self._pipe_txt2img)}")
-        print(
-            f"DEBUG: Pipeline has __call__: {hasattr(self._pipe_txt2img, '__call__')}"
-        )
 
     def _load_img_2_img_model(self):
         self._pipe_img2img = self.FluxImg2ImgPipeline(
@@ -376,8 +368,6 @@ class FluxPredictor:
         self._load_img_2_img_model()
 
     def do_text_2_img(self, request: Text2ImgInput) -> ImgOutput:
-        print(f"[DEBUG] do_text_2_img called with nag_scale={request.nag_scale}, alpha={request.alpha}")
-        print(f"[DEBUG] Pipeline type: {type(self._pipe_txt2img)}")
         raw_output = self._pipe_txt2img(
             prompt=request.prompt,
             negative_prompt=request.negative_prompt,
@@ -434,23 +424,23 @@ class NPFluxAttnProcessor2_0:
         image_rotary_emb: Optional["torch.Tensor"] = None,
     ) -> "torch.FloatTensor":
         """Process attention with optional NAG-PAG negative guidance.
-        
+
         Args:
             attn: FLUX attention layer
             hidden_states: Input hidden states
             encoder_hidden_states: Text encoder states
             attention_mask: Optional attention mask
             image_rotary_emb: Optional rotary embeddings
-            
+
         Returns:
             Processed hidden states with NAG-PAG guidance applied if negative embeddings present
         """
         import torch
         import torch.nn.functional as F
+
         # Get current parameters from pipeline
-        nag_scale = getattr(self._pipeline_ref, '_nag_scale', 0.3)
-        alpha = getattr(self._pipeline_ref, '_alpha', 0.99)
-        print(f"[DEBUG] Attention processor using: nag_scale={nag_scale}, alpha={alpha}")
+        nag_scale = getattr(self._pipeline_ref, "_nag_scale", 0.3)
+        alpha = getattr(self._pipeline_ref, "_alpha", 0.99)
 
         negative_embeddings = None
         if hasattr(self, "_pipeline_ref") and hasattr(
@@ -532,6 +522,7 @@ class NPFluxAttnProcessor2_0:
             # Create projection layer to convert concatenated embeddings (4864) to FLUX format (3072)
             if not hasattr(self, "_text_proj"):
                 import torch.nn as nn
+
                 device = negative_embeddings.device
                 dtype = negative_embeddings.dtype
                 self._text_proj = nn.Linear(4864, 3072, device=device, dtype=dtype)
@@ -558,16 +549,20 @@ class NPFluxAttnProcessor2_0:
 
             # Create negative attention output with identity matrix behavior
             neg_attention_output = torch.zeros_like(attention_output)
-            
+
             # Apply negative embeddings to encoder portion (first 512 tokens)
             neg_seq_len = neg_value_proj.shape[2]
             neg_attention_output[:, :, :neg_seq_len, :] = neg_value_proj
-            
+
             # Preserve hidden state portion from positive attention
-            neg_attention_output[:, :, neg_seq_len:, :] = attention_output[:, :, neg_seq_len:, :]
+            neg_attention_output[:, :, neg_seq_len:, :] = attention_output[
+                :, :, neg_seq_len:, :
+            ]
 
             # Apply NAG-PAG guidance equations
-            attention_output = self.apply_nagpag_equations(attention_output, neg_attention_output, nag_scale, alpha)
+            attention_output = self.apply_nagpag_equations(
+                attention_output, neg_attention_output, nag_scale, alpha
+            )
 
         # Reshape attention output back to original format
         hidden_states = attention_output.transpose(1, 2).reshape(
@@ -602,9 +597,7 @@ class NPFluxAttnProcessor2_0:
             Combined attention output using NAG-PAG guidance
         """
         import torch
-        
-        print(f"[DEBUG] Applying NAG-PAG equations: nag_scale={nag_scale}, alpha={alpha}")
-        
+
         # equation 7: z_tilde = z_pos + nag_scale * (z_pos - z_neg)
         z_tilde = z_positive + nag_scale * (z_positive - z_negative)
 
@@ -616,7 +609,6 @@ class NPFluxAttnProcessor2_0:
         # equation 9: apply threshold
         tau = 2.5  # Default tau value
         z_hat = torch.where(ratio > tau, tau, ratio) / ratio * z_tilde
-        print(f"using nag scale: {nag_scale}, alpha: {alpha}, tau: {tau}")
         # equation 10: final combination
         z_nagpag = alpha * z_hat + (1 - alpha) * z_positive
 

@@ -38,13 +38,19 @@ class MyApp(fal.App, keep_alive=300, name="take-home"):
 
     def warmup(self):
         logger.info("[DEBUG] Warmup method called")
-        warmup_task = self.Text2ImgInput(prompt="a picture of a cat", negative_prompt="")
-        logger.info(f"[DEBUG] Warmup task created: nag_scale={warmup_task.nag_scale}, alpha={warmup_task.alpha}")
+        warmup_task = self.Text2ImgInput(
+            prompt="a picture of a cat", negative_prompt=""
+        )
+        logger.info(
+            f"[DEBUG] Warmup task created: nag_scale={warmup_task.nag_scale}, alpha={warmup_task.alpha}"
+        )
         self.flux_predictor.do_text_2_img(warmup_task)
 
     @fal.endpoint("/")
     def text2img(self, text_2_img_request: Text2ImgInput):
-        logger.info(f"[DEBUG] text2img endpoint called with nag_scale={text_2_img_request.nag_scale}, alpha={text_2_img_request.alpha}")
+        logger.info(
+            f"[DEBUG] text2img endpoint called with nag_scale={text_2_img_request.nag_scale}, alpha={text_2_img_request.alpha}"
+        )
         image = self.flux_predictor.do_text_2_img(text_2_img_request)
         logger.info("[DEBUG] text2img endpoint completed")
         return image
